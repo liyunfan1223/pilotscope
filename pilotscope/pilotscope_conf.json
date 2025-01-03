@@ -27,5 +27,16 @@
         "user_data_db_name": "PilotScopeUserData",
         "app_name": "testApp",
         "master_url": "local[*]"
+    },
+    "MySQLConfig":{
+        "db": "testdb",
+        "db_host": "localhost",
+        "db_port": "3306",
+        "db_user": "pilotscope",
+        "db_user_pwd": "pilotscope",
+        "user_data_db_name": "PilotScopeUserData",
+        "pilotscope_core_host": "localhost",
+        "sql_execution_timeout": 300,
+        "once_request_timeout": 300
     }
 }

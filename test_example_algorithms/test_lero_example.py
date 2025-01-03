@@ -22,7 +22,7 @@ class LeroTest(unittest.TestCase):
     def test_lero(self):
         try:
             config = self.config
-            scheduler = get_lero_preset_scheduler(config, enable_collection=True, enable_training=True)
+            scheduler = get_lero_preset_scheduler(config, enable_collection=True, enable_training=True) #, num_collection=1000)
             print("start to test sql")
             sqls = load_test_sql(config.db)
             for i, sql in enumerate(sqls):

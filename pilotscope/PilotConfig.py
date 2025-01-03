@@ -231,6 +231,27 @@ class SparkConfig(PilotConfig):
         self.db_user = db_user
         self.db_user_pwd = db_user_pwd
 
+class MySQLConfig(PilotConfig):
+    def __init__(self, pilotscope_core_host = None, db_host = None, db_port = None, db_user= None,
+                 db_user_pwd = None, db = None, sql_execution_timeout = None,once_request_timeout = None) -> None:
+        """
+        :param app_name: the name of the application of Spark
+        :param master_url: the master URL of Spark cluster
+        """
+
+        super().__init__(db_type=DatabaseEnum.MYSQL, db = db, pilotscope_core_host = pilotscope_core_host,\
+                         sql_execution_timeout = sql_execution_timeout, once_request_timeout = once_request_timeout)
+        
+        self.db_host = db_host
+        self.db_port = db_port
+        self.db_user = db_user
+        self.db_user_pwd = db_user_pwd
+        with open(os.path.join(os.path.dirname(__file__), "pilotscope_conf.json"), "r") as f:
+            d = json.load(f)["MySQLConfig"]
+        for k, v in d.items():
+            if getattr(self, k) is None:
+                setattr(self, k, v)
+
 if __name__=="__main__":
     conf = SparkConfig()
     conf.print()

@@ -11,7 +11,8 @@ class PilotEnum(Enum):
 
 class DatabaseEnum(PilotEnum):
     POSTGRESQL = 0,
-    SPARK = 1
+    SPARK = 1,
+    MYSQL = 2
 
 
 class PushHandlerTriggerLevelEnum(PilotEnum):
