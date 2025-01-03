@@ -13,7 +13,11 @@ from tcnn.module import ConvTree, ActivationTreeWrap, LayerNormTree, DynamicPool
 from tcnn.util import prepare_trees
 from tqdm import tqdm
 CUDA = torch.cuda.is_available()
-GPU_LIST = [0, 1, 2, 3, 4, 5, 6, 7]
+num_gpus = torch.cuda.device_count()
+GPU_LIST = [0]
+
+print("CUDA availabilty:", CUDA)
+print("Num Gpus:", num_gpus, "GPU_LIST", GPU_LIST)
 
 torch.set_default_tensor_type(torch.DoubleTensor)
 device = torch.device("cuda:0" if CUDA else "cpu")
@@ -263,7 +267,7 @@ class LeroModelPairWise(LeroModel):
         optimizer = None
         if CUDA:
             optimizer = torch.optim.Adam(self._net.parameters())
-            optimizer = nn.DataParallel(optimizer, device_ids=GPU_LIST)
+            # optimizer = nn.DataParallel(optimizer, device_ids=GPU_LIST)
         else:
             optimizer = torch.optim.Adam(self._net.parameters())
 
@@ -297,14 +301,14 @@ class LeroModelPairWise(LeroModel):
                 loss = bce_loss_fn(prob_y, label_y)
                 loss_accum += loss.item()
 
-                if CUDA:
-                    optimizer.module.zero_grad()
-                    loss.backward()
-                    optimizer.module.step()
-                else:
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
+                # if CUDA:
+                #     optimizer.module.zero_grad()
+                #     loss.backward()
+                #     optimizer.module.step()
+                # else:
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
             loss_accum /= len(dataset)
             losses.append(loss_accum)
