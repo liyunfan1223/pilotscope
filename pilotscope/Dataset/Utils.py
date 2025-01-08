@@ -2,7 +2,8 @@ from pilotscope.PilotEnum import DatabaseEnum
 
 sqlglot_str_mapping_table = {
     DatabaseEnum.POSTGRESQL: "postgres",
-    DatabaseEnum.SPARK: "spark"
+    DatabaseEnum.SPARK: "spark",
+    DatabaseEnum.MYSQL: "mysql",
 }
 
 

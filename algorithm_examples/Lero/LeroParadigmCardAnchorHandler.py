@@ -7,6 +7,7 @@ from pilotscope.PilotTransData import PilotTransData
 from algorithm_examples.Lero.source.model import LeroModelPairWise
 from algorithm_examples.Lero.LeroPilotAdapter import CardsPickerModel
 import numpy as np
+import time
 
 class LeroCardPushHandler(CardPushHandler):
 
@@ -20,8 +21,12 @@ class LeroCardPushHandler(CardPushHandler):
     def predict(self, plans):
         leroModel: LeroModelPairWise = self.model.model
         feature_generator = leroModel._feature_generator
+        start_time = time.time()
         x, _ = feature_generator.transform(plans)
+        print(f"feature_generator time: {time.time() - start_time}")
+        start_time = time.time()
         scores = leroModel.predict(x)
+        print(f"Prediction time: {time.time() - start_time}")
         best_idx = np.argmin(scores)
         return best_idx
 
@@ -34,12 +39,15 @@ class LeroCardPushHandler(CardPushHandler):
         subquery_2_card = data.subquery_2_card
         
         # Initialize CardsPickerModel and other variables
+        start_time = time.time()
         cards_picker = CardsPickerModel(subquery_2_card.keys(), subquery_2_card.values())
+        print(f"CardPickerModel initialized in {time.time() - start_time}")
         scale_subquery_2_card = subquery_2_card
         new_cardss = []
         plans = []
         finish = False
         
+        start_time = time.time()
         # Core
         while(not finish):
             new_cardss.append(scale_subquery_2_card)
@@ -53,7 +61,10 @@ class LeroCardPushHandler(CardPushHandler):
             plans.append(plan)
             finish, new_cards = cards_picker.get_cards()
             scale_subquery_2_card = {sq : new_card for sq, new_card in zip(subquery_2_card.keys(), new_cards)}
+        print(f"Get Physical plans time: {time.time() - start_time}")
+        start_time = time.time()
         best_idx = self.predict(plans)
+        # print(f"Prediction time: {time.time() - start_time}")
         selected_card = new_cardss[best_idx]
         print(f"The best plan is {best_idx}/{len(new_cardss)}")
         

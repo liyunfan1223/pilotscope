@@ -29,7 +29,7 @@
         "master_url": "local[*]"
     },
     "MySQLConfig":{
-        "db": "testdb",
+        "db": "tpcds",
         "db_host": "localhost",
         "db_port": "3306",
         "db_user": "pilotscope",

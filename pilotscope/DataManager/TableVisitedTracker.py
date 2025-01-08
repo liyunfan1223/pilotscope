@@ -16,9 +16,10 @@ class TableVisitedTracker:
 
         # create table
         self.db_controller.create_table_if_absences(PilotSysConfig.DATA_VISIT_RECORD_TABLE, {
+            "id": 0,
             "table_name": "",
             "last_read_id": 1
-        }, primary_key_column="table_name", enable_autoincrement_id_key=False)
+        }, primary_key_column="id", enable_autoincrement_id_key=True)
 
     def update_data_visit_id(self, table_name, cur_id):
         query = "select * from {} where table_name='{}'".format(self.data_visit_table, table_name)

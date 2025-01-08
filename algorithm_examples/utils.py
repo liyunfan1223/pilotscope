@@ -7,6 +7,7 @@ from pilotscope.Dataset.ImdbDataset import ImdbDataset
 from pilotscope.Dataset.StatsDataset import StatsDataset
 from pilotscope.Dataset.StatsTinyDataset import StatsTinyDataset
 from pilotscope.Dataset.TpcdsDataset import TpcdsDataset
+from pilotscope.Dataset.Tpcds1GDataset import Tpcds1GDataset
 from pilotscope.PilotEnum import DatabaseEnum
 
 
@@ -23,7 +24,9 @@ def load_training_sql(db):
     elif "imdb" in db:
         return ImdbDataset(DatabaseEnum.POSTGRESQL).read_train_sql()
     elif "tpcds" in db.lower():
-        return TpcdsDataset(DatabaseEnum).read_train_sql()
+        return Tpcds1GDataset(DatabaseEnum.MYSQL).read_train_sql()
+    # elif "tpcds" in db.lower():
+    #     return TpcdsDataset(DatabaseEnum).read_train_sql()
     else:
         raise NotImplementedError
 
@@ -36,7 +39,9 @@ def load_test_sql(db):
     elif "imdb" in db:
         return ImdbDataset(DatabaseEnum.POSTGRESQL).read_test_sql()
     elif "tpcds" in db.lower():
-        return TpcdsDataset(DatabaseEnum).read_test_sql()
+        return Tpcds1GDataset(DatabaseEnum.MYSQL).read_test_sql()
+    # elif "tpcds" in db.lower():
+    #     return TpcdsDataset(DatabaseEnum).read_test_sql()
     else:
         raise NotImplementedError
 

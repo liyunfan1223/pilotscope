@@ -4,7 +4,7 @@ import subprocess
 
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
-from sqlalchemy import create_engine, String, Integer, Float, MetaData, Table, inspect, select, func, Column
+from sqlalchemy import create_engine, String, Text, Integer, Float, MetaData, Table, inspect, select, func, Column
 from sqlalchemy_utils import database_exists, create_database
 
 from pilotscope.Common.Index import Index
@@ -31,7 +31,6 @@ class MySQLController(BaseDBController):
     def __init__(self, config: MySQLConfig, echo=True, enable_simulate_index=False):
         super().__init__(config, echo)
         self.config: MySQLConfig = config
-
 
     def _create_conn_str(self):
         return "{}://{}:{}@{}:{}/{}".format("mysql+pymysql", self.config.db_user, self.config.db_user_pwd,
@@ -63,7 +62,37 @@ class MySQLController(BaseDBController):
         return self._explain(sql, comment, False)
 
     def _explain(self, sql, comment, execute: bool):
+        self.execute("SET @@explain_json_format_version = 2;")
         return self.execute(text(self.get_explain_sql(sql)), True)[0][0]
+
+    def create_table_if_absences(self, table_name, column_2_value, primary_key_column=None,
+                                 enable_autoincrement_id_key=True):
+        """
+        Create a table according to parameters if absences. This function will not insert any data into the table.
+        The column names and types of the table will be inferred from `column_2_value`.
+
+        :param table_name: the name of the table you want to create
+        :param column_2_value: a dict, whose keys are the names of columns and values. This data will be used to infer the column names and types of the table.
+        :param primary_key_column: A column name in `column_2_value`. The corresponding column will be set as primary key. Otherwise, there will be no primary key.
+        :param enable_autoincrement_id_key: If it is True, the `primary_key_column` will be autoincrement. It is only meaningful when `primary_key_column` is not None.
+        """
+        self._connect_if_loss()
+        if primary_key_column is not None and primary_key_column not in column_2_value:
+            raise RuntimeError("the primary key column {} is not in column_2_value".format(primary_key_column))
+
+        if not self.exist_table(table_name):
+            column_2_type = self._to_db_data_type(column_2_value)
+            columns = []
+            for column, column_type in column_2_type.items():
+                if column_type == String:
+                    column_type = Text(65535)
+                if column == primary_key_column:
+                    columns.append(
+                        Column(column, column_type, primary_key=True, autoincrement=enable_autoincrement_id_key))
+                else:
+                    columns.append(Column(column, column_type))
+            table = Table(table_name, self.metadata, *columns, extend_existing=True)
+            table.create(self.engine)
 
     def get_explain_sql(self, sql):
         """

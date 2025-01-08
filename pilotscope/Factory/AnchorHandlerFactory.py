@@ -11,6 +11,8 @@ class AnchorHandlerFactory:
             return cls._get_postgresql_anchor_handle(config, anchor)
         elif config.db_type == DatabaseEnum.SPARK:
             return cls._get_spark_anchor_handle(config, anchor)
+        elif config.db_type == DatabaseEnum.MYSQL:
+            return cls._get_mysql_anchor_handle(config, anchor)
         else:
             raise RuntimeError()
 
@@ -87,5 +89,44 @@ class AnchorHandlerFactory:
         elif anchor == AnchorEnum.BUFFERCACHE_PULL_ANCHOR:
             from pilotscope.Anchor.PostgreSQL.PullAnhor import PostgreSQLBuffercachePullHandler
             return PostgreSQLBuffercachePullHandler(config)
+        else:
+            raise RuntimeError()
+    
+    @classmethod
+    def _get_mysql_anchor_handle(cls, config, anchor: AnchorEnum):
+        # replace
+        if anchor == AnchorEnum.CARD_PUSH_ANCHOR:
+            return CardPushHandler(config)
+        elif anchor == AnchorEnum.HINT_PUSH_ANCHOR:
+            return HintPushHandler(config)
+        elif anchor == AnchorEnum.COST_PUSH_ANCHOR:
+            return CostPushHandler(config)
+        elif anchor == AnchorEnum.INDEX_PUSH_ANCHOR:
+            return IndexPushHandler(config)
+        elif anchor == AnchorEnum.KNOB_PUSH_ANCHOR:
+            return KnobPushHandler(config)
+        elif anchor == AnchorEnum.COMMENT_PUSH_ANCHOR:
+            return CommentPushHandler(config)
+        elif anchor == AnchorEnum.SCAN_JOIN_METHOD_PUSH_ANCHOR:
+            return ScanJoinMethodPushHandler(config)
+        # fetch
+        # elif anchor == AnchorEnum.RECORD_PULL_ANCHOR:
+        #     from pilotscope.Anchor.PostgreSQL.PullAnhor import PostgreSQLRecordPullHandler
+        #     return PostgreSQLRecordPullHandler(config)
+        elif anchor == AnchorEnum.EXECUTION_TIME_PULL_ANCHOR:
+            from pilotscope.Anchor.MySQL.PullAnchor import MySQLExecutionTimePullHandler
+            return MySQLExecutionTimePullHandler(config)
+        elif anchor == AnchorEnum.PHYSICAL_PLAN_PULL_ANCHOR:
+            from pilotscope.Anchor.MySQL.PullAnchor import MySQLPhysicalPlanPullHandler
+            return MySQLPhysicalPlanPullHandler(config)
+        # elif anchor == AnchorEnum.SUBQUERY_CARD_PULL_ANCHOR:
+        #     from pilotscope.Anchor.PostgreSQL.PullAnhor import PostgreSQLSubQueryCardPullHandler
+        #     return PostgreSQLSubQueryCardPullHandler(config)
+        # elif anchor == AnchorEnum.ESTIMATED_COST_PULL_ANCHOR:
+        #     from pilotscope.Anchor.PostgreSQL.PullAnhor import PostgreSQLEstimatedCostPullHandler
+        #     return PostgreSQLEstimatedCostPullHandler(config)
+        # elif anchor == AnchorEnum.BUFFERCACHE_PULL_ANCHOR:
+        #     from pilotscope.Anchor.PostgreSQL.PullAnhor import PostgreSQLBuffercachePullHandler
+        #     return PostgreSQLBuffercachePullHandler(config)
         else:
             raise RuntimeError()

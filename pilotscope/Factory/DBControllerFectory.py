@@ -40,6 +40,9 @@ class DBControllerFactory:
                     raise RuntimeError("SparkSQL does not support simulate index")
                 db_controller = SparkSQLController(config, echo)
                 pass
+            elif config.db_type == DatabaseEnum.MYSQL:
+                from pilotscope.DBController.MySQLController import MySQLController
+                db_controller = MySQLController(config, echo)
             else:
                 raise RuntimeError()
             DBControllerFactory._identifier_2_db_controller[identifier] = db_controller

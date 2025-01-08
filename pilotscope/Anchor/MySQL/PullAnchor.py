@@ -1,0 +1,95 @@
+from pilotscope.Anchor.BaseAnchor.BasePullHandler import *
+import time
+
+class MySQLAnchorMixin:
+    def get_physical_plan(self, db_controller, sql, pilot_comment):
+        return db_controller.explain_physical_plan(sql, comment=pilot_comment)
+
+    def get_execution_time(self, db_controller, sql, pilot_comment):
+        start_time = time.time()
+        db_controller.execute(sql)
+        return time.time() - start_time
+
+# class PostgreSQLRecordPullHandler(RecordPullHandler, PostgreSQLAnchorMixin):
+#     pass
+
+
+class MySQLPhysicalPlanPullHandler(PhysicalPlanPullHandler, MySQLAnchorMixin):
+
+    def fetch_from_outer(self, db_controller, sql, pilot_comment, anchor_data: AnchorTransData,
+                         fill_data: PilotTransData):
+        if fill_data.physical_plan is not None:
+            return
+
+        if anchor_data.physical_plan is None:
+            anchor_data.physical_plan = self.get_physical_plan(db_controller, sql, pilot_comment)
+
+        fill_data.physical_plan = anchor_data.physical_plan
+
+class MySQLExecutionTimePullHandler(BasePullHandler, MySQLAnchorMixin):
+
+    def __init__(self, config) -> None:
+        super().__init__(config)
+        self.fetch_method = FetchMethod.OUTER
+        self.anchor_name = AnchorEnum.EXECUTION_TIME_PULL_ANCHOR.name
+
+    def fetch_from_outer(self, db_controller, sql, pilot_comment, anchor_data: AnchorTransData,
+                         fill_data: PilotTransData):
+        if fill_data.execution_time is not None:
+            return
+
+        if anchor_data.execution_time is None:
+            anchor_data.execution_time = self.get_execution_time(db_controller, sql, pilot_comment)
+
+        fill_data.execution_time = anchor_data.execution_time
+
+            
+# def __init__(self, config) -> None:
+#     super().__init__(config)
+#     self.fetch_method = FetchMethod.OUTER
+#     self.anchor_name = AnchorEnum.PHYSICAL_PLAN_PULL_ANCHOR.name
+
+# def prepare_data_for_writing(self, column_2_value, data: PilotTransData):
+#     if data.physical_plan is not None:
+#         column_2_value["physical_plan"] = json.dumps(data.physical_plan)
+
+# class PostgreSQLEstimatedCostPullHandler(EstimatedCostPullHandler, PostgreSQLAnchorMixin):
+
+#     def fetch_from_outer(self, db_controller, sql, pilot_comment, anchor_data: AnchorTransData,
+#                          fill_data: PilotTransData):
+#         if fill_data.estimated_cost is not None:
+#             return
+
+#         if anchor_data.physical_plan is None:
+#             anchor_data.estimated_cost = db_controller.get_estimated_cost(sql, comment=pilot_comment)
+#         else:
+#             anchor_data.estimated_cost = anchor_data.physical_plan["Plan"]["Total Cost"]
+#         fill_data.estimated_cost = anchor_data.estimated_cost
+
+
+# class PostgreSQLBuffercachePullHandler(BuffercachePullHandler, PostgreSQLAnchorMixin):
+
+#     def fetch_from_outer(self, db_controller, sql, pilot_comment, anchor_data: AnchorTransData,
+#                          fill_data: PilotTransData):
+#         if fill_data.buffercache is not None:
+#             return
+
+#         if anchor_data.buffercache is None:
+#             anchor_data.buffercache = db_controller.get_buffercache()
+
+#         fill_data.buffercache = anchor_data.buffercache
+
+
+# class MySQLExecutionTimePullHandler(ExecutionTimePullHandler, MySQLAnchorMixin):
+#     pass
+
+
+# class PostgreSQLSubQueryCardPullHandler(SubQueryCardPullHandler, PostgreSQLAnchorMixin):
+
+#     def __init__(self, config) -> None:
+#         super().__init__(config)
+#         self.enable_parameterized_subquery = False
+
+#     def _add_trans_params(self, params: dict):
+#         super()._add_trans_params(params)
+#         params.update({"enable_parameterized_subquery": self.enable_parameterized_subquery})
