@@ -78,6 +78,7 @@ class FeatureGenerator():
         self.normalizer = None
         self.feature_parser = None
 
+
     def fit(self, trees):
         exec_times = []
         total_costs = []
@@ -100,7 +101,6 @@ class FeatureGenerator():
             if "inputs" in n:
                 for child in n["inputs"]:
                     recurse(child)
-
         for tree in trees:
             json_obj = json_str_to_json_obj(tree)
             if "Execution Time" in json_obj:
@@ -139,6 +139,23 @@ class FeatureGenerator():
                 {#"Startup Cost": startup_costs_max,
                  "Total Cost": total_costs_max, "Plan Rows": rows_max})
         self.feature_parser = AnalyzeJsonParser(self.normalizer, list(input_relations))
+
+
+
+    def get_all_table_to_ignore(self, tree):
+
+        tables = set()
+        def get_all_table_to_ignore_recursive(json_obj):
+            if ("table_name" in json_obj) and ("index_name" in json_obj):
+                tables.add(json_obj["table_name"])
+
+            if "inputs" in json_obj:
+                for child in json_obj["inputs"]:
+                    get_all_table_to_ignore_recursive(child)
+
+        json_obj = json_str_to_json_obj(tree)
+        get_all_table_to_ignore_recursive(json_obj)
+        return tables
 
     def transform(self, trees):
         local_features = []

@@ -40,7 +40,7 @@ from pilotscope.DBController.MySQLController import MySQLController
 
 if __name__ == '__main__':
     config = MySQLConfig()
-    scheduler = get_mysql_preset_scheduler(config, enable_collection=False, enable_training=True, num_collection=20, num_epoch=100)
+    scheduler = get_mysql_preset_scheduler(config, enable_collection=True, enable_training=True, num_collection=5, num_epoch=100)
 
 # if __name__ == "__main__":
 #     controller = MySQLController(MySQLConfig())
