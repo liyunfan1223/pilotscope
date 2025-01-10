@@ -36,7 +36,7 @@
         "db_user_pwd": "pilotscope",
         "user_data_db_name": "PilotScopeUserData",
         "pilotscope_core_host": "localhost",
-        "sql_execution_timeout": 300,
+        "sql_execution_timeout": 180,
         "once_request_timeout": 300
     }
 }

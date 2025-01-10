@@ -22,6 +22,7 @@ class PilotTransData:
         self.execution_time = None
         self.estimated_cost = None
         self.buffercache = None
+        self.possible_keys = None # dict - key(str): table_name, value(list): possible index names
         self.subquery_2_card: dict = {}
 
     def __str__(self) -> str:

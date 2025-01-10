@@ -119,6 +119,9 @@ class AnchorHandlerFactory:
         elif anchor == AnchorEnum.PHYSICAL_PLAN_PULL_ANCHOR:
             from pilotscope.Anchor.MySQL.PullAnchor import MySQLPhysicalPlanPullHandler
             return MySQLPhysicalPlanPullHandler(config)
+        elif anchor == AnchorEnum.POSSIBLE_KEYS_PULL_ANCHOR:
+            from pilotscope.Anchor.MySQL.PullAnchor import MySQLPossibleKeysPullHandler
+            return MySQLPossibleKeysPullHandler(config)
         # elif anchor == AnchorEnum.SUBQUERY_CARD_PULL_ANCHOR:
         #     from pilotscope.Anchor.PostgreSQL.PullAnhor import PostgreSQLSubQueryCardPullHandler
         #     return PostgreSQLSubQueryCardPullHandler(config)

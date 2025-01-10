@@ -1,5 +1,6 @@
 import os
 import re
+import pymysql
 import subprocess
 
 from sqlalchemy import text
@@ -33,9 +34,9 @@ class MySQLController(BaseDBController):
         self.config: MySQLConfig = config
 
     def _create_conn_str(self):
-        return "{}://{}:{}@{}:{}/{}".format("mysql+pymysql", self.config.db_user, self.config.db_user_pwd,
+        return "{}://{}:{}@{}:{}/{}?read_timeout={}".format("mysql+pymysql", self.config.db_user, self.config.db_user_pwd,
                                                self.config.db_host,
-                                               self.config.db_port, self.config.db)
+                                               self.config.db_port, self.config.db, self.config.sql_execution_timeout)
 
     def _create_engine(self):
         """
@@ -64,6 +65,18 @@ class MySQLController(BaseDBController):
     def _explain(self, sql, comment, execute: bool):
         self.execute("SET @@explain_json_format_version = 2;")
         return self.execute(text(self.get_explain_sql(sql)), True)[0][0]
+
+    def get_possible_keys(self, sql, comment=""):
+        possible_keys = dict()
+        outputs = self.execute(text(self.get_explain_sql(sql, format=None)), True)
+        TABLE_IDX = 2
+        POSSIBLE_KEYS_IDX = 5
+        for output in outputs:
+            if output[POSSIBLE_KEYS_IDX] is not None:
+                possible_keys[output[TABLE_IDX]] = [x for x in output[POSSIBLE_KEYS_IDX].split(',')]
+            else:
+                possible_keys[output[TABLE_IDX]] = []
+        return possible_keys
 
     def create_table_if_absences(self, table_name, column_2_value, primary_key_column=None,
                                  enable_autoincrement_id_key=True):
@@ -94,7 +107,7 @@ class MySQLController(BaseDBController):
             table = Table(table_name, self.metadata, *columns, extend_existing=True)
             table.create(self.engine)
 
-    def get_explain_sql(self, sql):
+    def get_explain_sql(self, sql, format = 'json'):
         """
         Constructs an EXPLAIN SQL statement for a given SQL query.
 
@@ -103,8 +116,13 @@ class MySQLController(BaseDBController):
         :param comment:  A SQL comment will be added to the beginning of the SQL query.
         :return: The result of executing the `EXPLAIN` SQL statement.
         """
-        return "EXPLAIN format=json {}".format(sql)
-        
+        result = str()
+        if format == 'json':
+            result = "EXPLAIN format=json {}".format(sql)
+        else:
+            result = "EXPLAIN {}".format(sql)
+        return result
+
     def explain_execution_plan(self, sql, comment=""):
         """
         Get the execution plan from database's optimizer of a SQL query.
@@ -161,13 +179,13 @@ class MySQLController(BaseDBController):
                 if fetch_column_name:
                     row = [tuple(result.keys()), *row]
         except OperationalError as e:
-            if "canceling statement due to statement timeout" in str(e):
+            if "timed out" in str(e):
                 raise DBStatementTimeoutException(str(e))
             else:
                 raise e
-        except Exception as e:
-            if "PilotScopePullEnd" not in str(e):
-                raise e
+        # except Exception as e:
+        #     if "PilotScopePullEnd" not in str(e):
+        #         raise e
         return row
 
     def set_hint(self, key, value):

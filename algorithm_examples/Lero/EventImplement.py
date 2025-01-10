@@ -63,7 +63,7 @@ class LeroPretrainingModelEvent(PretrainingModelEvent):
         else:
             train_sqls = self.sqls
         for i, sql in enumerate(train_sqls):
-            print("current is {}-th sql, and total sqls is {}".format(i, len(train_sqls)))
+            print("current is {}-th sql, and total sqls is {}".format(i + 1, len(train_sqls)))
             self.pilot_data_interactor.pull_subquery_card()
             data: PilotTransData = self.pilot_data_interactor.execute(sql)
             if data is None:
@@ -86,6 +86,7 @@ class LeroPretrainingModelEvent(PretrainingModelEvent):
                 column_2_value["sql"] = sql
                 column_2_value["plan"] = plan
                 column_2_value["time"] = data.execution_time
+                print("Execution time:", data.execution_time)
                 finish, new_cards = cards_picker.get_cards()
                 scale_subquery_2_card = {sq : new_card for sq, new_card in zip(subquery_2_card.keys(), new_cards)}
                 column_2_value_list.append(column_2_value)

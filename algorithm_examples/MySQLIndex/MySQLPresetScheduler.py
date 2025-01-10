@@ -28,7 +28,7 @@ def get_mysql_preset_scheduler(config, enable_collection, enable_training, num_c
 
     model_name = "mysql"
     test_data_table = "{}_test_data_table".format(model_name)
-    pretraining_data_table = "mysql_pretraining_collect_data"
+    pretraining_data_table = f"mysql_pretraining_collect_data_for_{config.db}"
 
     data_manager = DataManager(config)
     if enable_collection: # if enable_collection, drop old data and collect new data. otherwise use old data to train.

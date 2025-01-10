@@ -8,6 +8,7 @@ from pilotscope.Dataset.StatsDataset import StatsDataset
 from pilotscope.Dataset.StatsTinyDataset import StatsTinyDataset
 from pilotscope.Dataset.TpcdsDataset import TpcdsDataset
 from pilotscope.Dataset.Tpcds1GDataset import Tpcds1GDataset
+from pilotscope.Dataset.MysqlDataset import TpchDataset
 from pilotscope.PilotEnum import DatabaseEnum
 
 
@@ -25,6 +26,8 @@ def load_training_sql(db):
         return ImdbDataset(DatabaseEnum.POSTGRESQL).read_train_sql()
     elif "tpcds" in db.lower():
         return Tpcds1GDataset(DatabaseEnum.MYSQL).read_train_sql()
+    elif "tpch" in db.lower():
+        return TpchDataset(DatabaseEnum.MYSQL).read_train_sql()
     # elif "tpcds" in db.lower():
     #     return TpcdsDataset(DatabaseEnum).read_train_sql()
     else:

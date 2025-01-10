@@ -193,6 +193,13 @@ class PilotDataInteractor:
         anchor = AnchorHandlerFactory.get_anchor_handler(self.config, AnchorEnum.PHYSICAL_PLAN_PULL_ANCHOR)
         self._anchor_to_handlers[AnchorEnum.PHYSICAL_PLAN_PULL_ANCHOR] = anchor
 
+    def pull_possible_keys(self):
+        """
+        Require PilotScope to collect possible keys when execute a SQL query.
+        """
+        anchor = AnchorHandlerFactory.get_anchor_handler(self.config, AnchorEnum.POSSIBLE_KEYS_PULL_ANCHOR)
+        self._anchor_to_handlers[AnchorEnum.POSSIBLE_KEYS_PULL_ANCHOR] = anchor
+
     def pull_execution_time(self):
         """
         Require PilotScope to collect execution time when execute a SQL query.
@@ -327,7 +334,6 @@ class PilotDataInteractor:
             return data
 
         except (DBStatementTimeoutException, InteractorReceiveTimeoutException) as e:
-            print(e)
             return None
         except Exception as e:
             raise e

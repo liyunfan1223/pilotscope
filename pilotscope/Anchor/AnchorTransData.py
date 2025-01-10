@@ -4,3 +4,4 @@ class AnchorTransData:
         self.buffercache = None
         self.estimated_cost = None
         self.execution_time = None
+        self.possible_keys = None

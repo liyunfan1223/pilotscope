@@ -5,6 +5,9 @@ class MySQLAnchorMixin:
     def get_physical_plan(self, db_controller, sql, pilot_comment):
         return db_controller.explain_physical_plan(sql, comment=pilot_comment)
 
+    def get_possible_keys(self, db_controller, sql, pilot_comment):
+        return db_controller.get_possible_keys(sql, comment=pilot_comment)
+
     def get_execution_time(self, db_controller, sql, pilot_comment):
         start_time = time.time()
         db_controller.execute(sql)
@@ -25,6 +28,18 @@ class MySQLPhysicalPlanPullHandler(PhysicalPlanPullHandler, MySQLAnchorMixin):
             anchor_data.physical_plan = self.get_physical_plan(db_controller, sql, pilot_comment)
 
         fill_data.physical_plan = anchor_data.physical_plan
+
+class MySQLPossibleKeysPullHandler(PhysicalPlanPullHandler, MySQLAnchorMixin):
+
+    def fetch_from_outer(self, db_controller, sql, pilot_comment, anchor_data: AnchorTransData,
+                         fill_data: PilotTransData):
+        if fill_data.possible_keys is not None:
+            return
+
+        if anchor_data.possible_keys is None:
+            anchor_data.possible_keys = self.get_possible_keys(db_controller, sql, pilot_comment)
+
+        fill_data.possible_keys = anchor_data.possible_keys
 
 class MySQLExecutionTimePullHandler(BasePullHandler, MySQLAnchorMixin):
 
