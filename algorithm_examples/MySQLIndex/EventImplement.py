@@ -94,6 +94,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
             default_time = 1000000
             best_time_with_hints = 1000000
             best_hint = str()
+            temp_value_list = []
             for extended_sql, hint in zip(extended_sqls, hints):
                 self.pilot_data_interactor.pull_physical_plan()
                 self.pilot_data_interactor.pull_execution_time()
@@ -120,13 +121,14 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                 # finish, new_cards = cards_picker.get_cards()
                 # scale_subquery_2_card = {sq : new_card for sq, new_card in zip(subquery_2_card.keys(), new_cards)}
                 column_2_value_list.append(column_2_value)
+                temp_value_list.append(column_2_value)
             
             self.total_count += 1
             if best_time_with_hints < default_time * 0.8:
                 self.at_least_one_better_count += 1
                 if best_time_with_hints < default_time * 0.2:
                     self.at_least_one_better_extreme_count += 1
-            for column_2_value in column_2_value_list:
+            for column_2_value in temp_value_list:
                 if column_2_value["hint"] == "":
                     continue
 
@@ -136,12 +138,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                     self.worse_count += 1
                 else:
                     self.similar_count += 1
-            # print("best time with hints: {:.4f}, default time: {:.4f}, best hints: {}".format(best_time_with_hints, default_time, best_hint))
-
-            # print("Accumulative better_count: {}, similar_count: {}, worse_count: {}".format(self.better_count, self.similar_count, self.worse_count))
-            # print("At least one better rate: {:.2f}% ({}/{}), extreme: {:.2f}% ({}/{})".format(self.at_least_one_better_count / self.total_count * 100, 
-            #     self.at_least_one_better_count, self.total_count, self.at_least_one_better_extreme_count / self.total_count * 100, self.at_least_one_better_extreme_count, self.total_count))
-            
+           
             print_log("best time with hints: {:.4f}, default time: {:.4f}, best hints: {}".format(best_time_with_hints, default_time, best_hint), './app.log', True)
             print_log("Accumulative better_count: {}, similar_count: {}, worse_count: {}".format(self.better_count, self.similar_count, self.worse_count), './app.log', True)
             print_log("At least one better rate: {:.2f}% ({}/{}), extreme: {:.2f}% ({}/{})".format(self.at_least_one_better_count / self.total_count * 100, 
