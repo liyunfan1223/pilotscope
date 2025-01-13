@@ -78,11 +78,12 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
             print("current is {}-th sql, and total sqls is {}".format(i + 1, len(train_sqls)))
 
             self.pilot_data_interactor.pull_possible_keys()
+            self.pilot_data_interactor.pull_physical_plan()
             data: PilotTransData = self.pilot_data_interactor.execute(sql)
             feature_generator = FeatureGenerator()
-            # tables = feature_generator.get_all_table_to_ignore(data.physical_plan)
+            tables = feature_generator.get_all_table_to_ignore(data.physical_plan)
             index_selector = MySQLIndexSelector()
-            extended_sqls, hints = index_selector.GenerateSQLsWithHints(sql, data.possible_keys)
+            extended_sqls, hints = index_selector.GenerateSQLsWithHints(sql, data.possible_keys, len(tables))
             for extended_sql, hint in zip(extended_sqls, hints):
                 self.pilot_data_interactor.pull_physical_plan()
                 self.pilot_data_interactor.pull_execution_time()
