@@ -55,6 +55,11 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
         self.num_collection = num_collection
         self.num_training = num_training
         self.num_epoch = num_epoch
+        self.better_count = 0
+        self.similar_count = 0
+        self.worse_count = 0
+        self.at_least_one_better_count = 0
+        self.total_count = 0
 
     def load_sql(self):
         self.sqls = load_training_sql(self.config.db)
@@ -84,22 +89,55 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
             tables = feature_generator.get_all_table_to_ignore(data.physical_plan)
             index_selector = MySQLIndexSelector()
             extended_sqls, hints = index_selector.GenerateSQLsWithHints(sql, data.possible_keys, len(tables))
+
+            default_time = 1000000
+            best_time_with_hints = 1000000
+            best_hint = str()
             for extended_sql, hint in zip(extended_sqls, hints):
                 self.pilot_data_interactor.pull_physical_plan()
                 self.pilot_data_interactor.pull_execution_time()
                 data: PilotTransData = self.pilot_data_interactor.execute(extended_sql)
                 if data is None:
-                    print(f"Warning: timeout in collecting data with hint {hint}. Try to enlarge 'timeout' in config to collect.")
-                    continue
+                    # print(f"Warning: timeout in collecting data with hint {hint}. Try to enlarge 'timeout' in config to collect.")
+                    self.pilot_data_interactor.pull_physical_plan()
+                    data: PilotTransData = self.pilot_data_interactor.execute(extended_sql)
+                    data.execution_time = self.config.sql_execution_timeout * 2
+
                 plan = data.physical_plan
                 column_2_value = {}
                 column_2_value["sql"] = sql
                 column_2_value["plan"] = plan
                 column_2_value["time"] = data.execution_time
-                print("Execution time:", data.execution_time, "Hint:", hint)
+                column_2_value["hint"] = hint
+                if hint == "":
+                    default_time = min(default_time, data.execution_time)
+                elif data.execution_time < best_time_with_hints:
+                    best_time_with_hints = data.execution_time
+                    best_hint = hint
+                    
+                # print("Execution time:", data.execution_time, "Hint:", hint)
                 # finish, new_cards = cards_picker.get_cards()
                 # scale_subquery_2_card = {sq : new_card for sq, new_card in zip(subquery_2_card.keys(), new_cards)}
                 column_2_value_list.append(column_2_value)
+            
+            self.total_count += 1
+            if best_time_with_hints < default_time * 0.7:
+                self.at_least_one_better_count += 1
+            for column_2_value in column_2_value_list:
+                if column_2_value["hint"] == "":
+                    continue
+
+                if column_2_value["time"] < default_time * 0.7:
+                    self.better_count += 1
+                elif column_2_value["time"] * 0.7 > default_time:
+                    self.worse_count += 1
+                else:
+                    self.similar_count += 1
+            print("best time with hints: {}, default time: {}, best hints: {}".format(best_time_with_hints, default_time, best_hint))
+
+            print("Accumulative better_count: {}, similar_count: {}, worse_count: {}, at_least_one_better_count: {}, total_count: {}".format(self.better_count, self.similar_count, self.worse_count, self.at_least_one_better_count, self.total_count))
+            print("At least one better rate: {}%".format(self.at_least_one_better_count / self.total_count * 100))
+
         return column_2_value_list, True
 
     def custom_model_training(self, bind_pilot_model, db_controller: BaseDBController,
