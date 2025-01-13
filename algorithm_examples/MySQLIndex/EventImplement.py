@@ -5,7 +5,7 @@ from pandas import DataFrame
 # from algorithm_examples.Lero.LeroPilotAdapter import CardsPickerModel
 # from algorithm_examples.Lero.source.train import training_pairwise_pilot_score, get_training_pair
 from algorithm_examples.MySQLIndex.source.train import training_pairwise_pilot_score, get_training_pair
-from algorithm_examples.utils import load_training_sql
+from algorithm_examples.utils import load_training_sql, print_log
 from pilotscope.DBController.BaseDBController import BaseDBController
 from pilotscope.DBInteractor.PilotDataInteractor import PilotDataInteractor
 from pilotscope.DataManager.DataManager import DataManager
@@ -59,6 +59,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
         self.similar_count = 0
         self.worse_count = 0
         self.at_least_one_better_count = 0
+        self.at_least_one_better_extreme_count = 0
         self.total_count = 0
 
     def load_sql(self):
@@ -121,23 +122,31 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                 column_2_value_list.append(column_2_value)
             
             self.total_count += 1
-            if best_time_with_hints < default_time * 0.7:
+            if best_time_with_hints < default_time * 0.8:
                 self.at_least_one_better_count += 1
+                if best_time_with_hints < default_time * 0.2:
+                    self.at_least_one_better_extreme_count += 1
             for column_2_value in column_2_value_list:
                 if column_2_value["hint"] == "":
                     continue
 
-                if column_2_value["time"] < default_time * 0.7:
+                if column_2_value["time"] < default_time * 0.8:
                     self.better_count += 1
-                elif column_2_value["time"] * 0.7 > default_time:
+                elif column_2_value["time"] * 0.8 > default_time:
                     self.worse_count += 1
                 else:
                     self.similar_count += 1
-            print("best time with hints: {:.2f}, default time: {:.2f}, best hints: {}".format(best_time_with_hints, default_time, best_hint))
+            # print("best time with hints: {:.4f}, default time: {:.4f}, best hints: {}".format(best_time_with_hints, default_time, best_hint))
 
-            print("Accumulative better_count: {}, similar_count: {}, worse_count: {}, at_least_one_better_count: {}, total_count: {}".format(self.better_count, self.similar_count, self.worse_count, self.at_least_one_better_count, self.total_count))
-            print("At least one better rate: {:.2f}%".format(self.at_least_one_better_count / self.total_count * 100))
-
+            # print("Accumulative better_count: {}, similar_count: {}, worse_count: {}".format(self.better_count, self.similar_count, self.worse_count))
+            # print("At least one better rate: {:.2f}% ({}/{}), extreme: {:.2f}% ({}/{})".format(self.at_least_one_better_count / self.total_count * 100, 
+            #     self.at_least_one_better_count, self.total_count, self.at_least_one_better_extreme_count / self.total_count * 100, self.at_least_one_better_extreme_count, self.total_count))
+            
+            print_log("best time with hints: {:.4f}, default time: {:.4f}, best hints: {}".format(best_time_with_hints, default_time, best_hint), './app.log', True)
+            print_log("Accumulative better_count: {}, similar_count: {}, worse_count: {}".format(self.better_count, self.similar_count, self.worse_count), './app.log', True)
+            print_log("At least one better rate: {:.2f}% ({}/{}), extreme: {:.2f}% ({}/{})".format(self.at_least_one_better_count / self.total_count * 100, 
+                self.at_least_one_better_count, self.total_count, self.at_least_one_better_extreme_count / self.total_count * 100, self.at_least_one_better_extreme_count, self.total_count), './app.log', True)
+                
         return column_2_value_list, True
 
     def custom_model_training(self, bind_pilot_model, db_controller: BaseDBController,

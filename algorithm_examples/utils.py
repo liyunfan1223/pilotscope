@@ -176,3 +176,8 @@ def get_spark_table_name_for_scan_node(node: dict):
     else:
         raise NotImplementedError
     return table
+
+def print_log(s, log_path, print_to_std_out=False):
+    os.system("echo \"" + str(s) + "\" >> " + log_path)
+    if print_to_std_out:
+        print(s)
