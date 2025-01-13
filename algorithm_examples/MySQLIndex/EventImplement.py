@@ -133,10 +133,10 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                     self.worse_count += 1
                 else:
                     self.similar_count += 1
-            print("best time with hints: {}, default time: {}, best hints: {}".format(best_time_with_hints, default_time, best_hint))
+            print("best time with hints: {:.2f}, default time: {:.2f}, best hints: {}".format(best_time_with_hints, default_time, best_hint))
 
             print("Accumulative better_count: {}, similar_count: {}, worse_count: {}, at_least_one_better_count: {}, total_count: {}".format(self.better_count, self.similar_count, self.worse_count, self.at_least_one_better_count, self.total_count))
-            print("At least one better rate: {}%".format(self.at_least_one_better_count / self.total_count * 100))
+            print("At least one better rate: {:.2f}%".format(self.at_least_one_better_count / self.total_count * 100))
 
         return column_2_value_list, True
 
