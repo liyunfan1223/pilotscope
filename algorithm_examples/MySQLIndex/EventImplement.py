@@ -16,6 +16,8 @@ from pilotscope.PilotModel import PilotModel
 from pilotscope.PilotTransData import PilotTransData
 from algorithm_examples.MySQLIndex.source.feature import FeatureGenerator
 from algorithm_examples.MySQLIndex.MySQLIndexSelector import MySQLIndexSelector
+from sklearn.model_selection import train_test_split
+import numpy as np
 
 def extract_plan_pairs(data: DataFrame):
     sql_2_plans = {}
@@ -99,7 +101,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
             for extended_sql, hint in zip(extended_sqls, hints):
                 self.pilot_data_interactor.pull_physical_plan()
                 self.pilot_data_interactor.pull_execution_time()
-                data: PilotTransData = self.pilot_data_interactor.execute(extended_sql, set_timeout=True)
+                data: PilotTransData = self.pilot_data_interactor.execute(extended_sql)
                 if data is None:
                     # print(f"Warning: timeout in collecting data with hint {hint}. Try to enlarge 'timeout' in config to collect.")
                     self.pilot_data_interactor.pull_physical_plan()
@@ -157,10 +159,81 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
     def custom_model_training(self, bind_pilot_model, db_controller: BaseDBController,
                               data_manager: DataManager):
         data: DataFrame = data_manager.read_all(self.data_saving_table)
-        if self.num_training > 0:
-            data = data[:self.num_training]
+        # if self.num_training > 0:
+        #     data = data[:self.num_training]
 
-        print(f"Train mysql on {data.shape[0]} plans")
-        plans1, plans2 = extract_plan_pairs(data)
+        sqls = list(data["sql"].unique())
+        if self.num_training > 0:
+            sqls = sqls[:self.num_training]
+        # 将 sql 按 8:2划分训练和测试集
+        train_sqls, test_sqls = train_test_split(sqls, test_size=0.2, random_state=42)
+
+        data_train = data[data["sql"].isin(train_sqls)]
+        data_test = data[data["sql"].isin(test_sqls)]
+
+        print(f"Train model on {data_train.shape[0]} plans")
+        plans1, plans2 = extract_plan_pairs(data_train)
         mysql_model = training_pairwise_pilot_score(bind_pilot_model, plans1, plans2, self.num_epoch)
+
+        print(f"Test model on {data_test.shape[0]} plans")
+
+        speed_up_sum = 0
+        counter = 0
+        better_counter = 0
+        worse_counter = 0
+        similar_counter = 0
+        explore_from_table = False
+        for i, sql in zip(range(len(test_sqls)), test_sqls):
+            self.pilot_data_interactor.pull_possible_keys()
+            self.pilot_data_interactor.pull_physical_plan()
+            data: PilotTransData = self.pilot_data_interactor.execute(sql)
+            feature_generator = FeatureGenerator()
+            tables = feature_generator.get_all_table_to_ignore(data.physical_plan)
+            index_selector = MySQLIndexSelector()
+            if explore_from_table:
+                extended_sqls = []
+                hints = list(data_test.loc[(data_test["sql"] == sql)]["hint"])
+                for hint in hints:
+                    extended_sqls.append(index_selector.CombineSqlWithHints(sql, hint))
+            else:
+                extended_sqls, hints = index_selector.GenerateSQLsWithHints(sql, data.possible_keys, len(tables))
+
+            feature_trees = []
+            physical_plans = []
+            for extended_sql, hint in zip(extended_sqls, hints):
+                self.pilot_data_interactor.pull_physical_plan()
+                data: PilotTransData = self.pilot_data_interactor.execute(extended_sql)
+                physical_plan = data.physical_plan
+                physical_plans.append(physical_plan)
+            X, Y = mysql_model._feature_generator.transform(physical_plans)
+            pred = mysql_model.predict(X)
+            best_idx = np.argmin(pred)
+            print_log("Model select hint for {}-th SQL: {}".format(i + 1, hints[best_idx]), log_file_name, True)
+
+            if explore_from_table:
+                selected_time = list(data_test.loc[(data_test["sql"] == sql) & (data_test["hint"] == hints[best_idx])]["time"])
+                if len(selected_time) > 1:
+                    selected_time = min(selected_time)
+                else:
+                    selected_time = selected_time[0]
+                default_time = list(data_test.loc[(data_test["sql"] == sql) & (data_test["hint"] == "")]["time"])
+                default_time = min(default_time)
+            else:
+                self.pilot_data_interactor.pull_execution_time()
+                self.pilot_data_interactor.execute(index_selector.CombineSqlWithHints(sql, hints[best_idx]))
+                selected_time = data.execution_time
+
+                self.pilot_data_interactor.pull_execution_time()
+                self.pilot_data_interactor.execute(sql)
+                default_time = data.execution_time
+
+            possible_times = list(data_test.loc[(data_test["sql"] == sql)]["time"])
+            best_possible_time = min(possible_times)
+            
+            speed_up_sum += default_time / selected_time
+            counter += 1
+            print_log("Execution speed up: {:.2f}%({:.4f}s/{:.4f}s), Best possible in table: {:.4f}s. Average execution speed up : {:.2f}%".format(default_time / selected_time * 100, default_time, selected_time,
+                best_possible_time, speed_up_sum / counter * 100), log_file_name, True)
+            # mysql_model.predict
+                # mysql_model.predict
         return mysql_model

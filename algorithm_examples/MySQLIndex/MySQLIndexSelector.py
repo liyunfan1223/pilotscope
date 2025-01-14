@@ -40,9 +40,11 @@ class MySQLIndexSelector():
         hints = [""] + hints + [""]
         
         for hint in hints:
-            index = sql.find("SELECT")
-            # new_sql = sql[:index] + sql[index:].replace("SELECT ", f"SELECT /*+{hint}*/", 1)
-            new_sql = sql.replace("SELECT ", f"SELECT /*+{hint}*/")
+            new_sql = self.CombineSqlWithHints(sql, hint)
             sqls.append(new_sql)
         
         return sqls, hints
+
+    def CombineSqlWithHints(self, sql, hint):
+        new_sql = sql.replace("SELECT ", f"SELECT /*+{hint}*/")
+        return new_sql

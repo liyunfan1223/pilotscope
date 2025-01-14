@@ -180,7 +180,7 @@ def get_spark_table_name_for_scan_node(node: dict):
 
 log_file_name = "./test_" + time.strftime("%Y%m%d_%H%M%S") + ".log"
 
-def print_log(s, log_path, print_to_std_out=False):
+def print_log(s, log_path=log_file_name, print_to_std_out=False):
     os.system("echo \"" + str(s) + "\" >> " + log_path)
     if print_to_std_out:
         print(s)

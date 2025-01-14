@@ -58,8 +58,9 @@ torch.backends.cudnn.deterministic = True
 
 if __name__ == '__main__':
     config = MySQLConfig()
-    scheduler = get_mysql_preset_scheduler(config, enable_collection=False, enable_training=True, num_collection=1000, num_epoch=100, num_training=10000)
+    scheduler = get_mysql_preset_scheduler(config, enable_collection=False, enable_training=True, num_collection=1000, num_epoch=10, num_training=1000)
 
+    # sqls = load_test_sql(config.db)
 # if __name__ == "__main__":
 #     controller = MySQLController(MySQLConfig())
 #     controller._connect_if_loss()
