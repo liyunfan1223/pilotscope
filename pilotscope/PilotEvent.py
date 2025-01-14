@@ -198,8 +198,8 @@ class PretrainingModelEvent(Event, ABC):
         if self.enable_collection:
             while not is_terminate:
                 column_2_value_list, is_terminate = self.iterative_data_collection(db_controller, data_manager)
-                table = self.data_saving_table
-                data_manager.save_data_batch(table, column_2_value_list)
+                # table = self.data_saving_table
+                # data_manager.save_data_batch(table, column_2_value_list)
 
     def _model_training(self, db_controller: BaseDBController, train_data_manager: DataManager):
         """
