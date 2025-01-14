@@ -183,6 +183,9 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
         worse_counter = 0
         similar_counter = 0
         explore_from_table = False
+
+        total_selected_time = 0
+        total_default_time = 0
         for i, sql in zip(range(len(test_sqls)), test_sqls):
             self.pilot_data_interactor.pull_possible_keys()
             self.pilot_data_interactor.pull_physical_plan()
@@ -235,11 +238,25 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
 
             possible_times = list(data_test.loc[(data_test["sql"] == sql)]["time"])
             best_possible_time = min(possible_times)
-            
-            speed_up_sum += default_time / selected_time
+
+            total_selected_time += selected_time
+            total_default_time += default_time
+
+            # speed_up_sum += default_time / selected_time
+            if selected_time * 0.8 > default_time:
+                better_counter += 1
+            elif default_time * 0.8 > selected_time:
+                worse_counter += 1
+            else:
+                similar_counter += 1
+
             counter += 1
-            print_log("Execution speed up: {:.2f}%({:.4f}s/{:.4f}s), Best possible in table: {:.4f}s. Average execution speed up : {:.2f}%".format(default_time / selected_time * 100, default_time, selected_time,
-                best_possible_time, speed_up_sum / counter * 100), log_file_name, True)
+            print_log("Execution speed up: {:.2f}%({:.4f}s/{:.4f}s), Best possible in table: {:.4f}s.".format(default_time / selected_time * 100, default_time, selected_time,
+                best_possible_time), log_file_name, True)
+            print_log("Total speed up: {:.2f}%({:.4f}s/{:.4f}s) Better: {:.2f}%({}/{}) Worse: {:.2f}%({}/{}) Similar: {:.2f}%({}/{})".format(
+                total_selected_time / total_default_time * 100, total_selected_time, total_default_time,
+                better_counter / counter * 100, better_counter, counter,
+                worse_counter / counter * 100, worse_counter, counter, similar_counter / counter * 100, similar_counter, counter), log_file_name, True)
             # mysql_model.predict
                 # mysql_model.predict
         return mysql_model
