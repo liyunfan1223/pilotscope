@@ -222,19 +222,28 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                 default_time = list(data_test.loc[(data_test["sql"] == sql) & (data_test["hint"] == "")]["time"])
                 default_time = min(default_time)
             else:
-                self.pilot_data_interactor.pull_execution_time()
-                data = self.pilot_data_interactor.execute(index_selector.CombineSqlWithHints(sql, hints[best_idx]))
-                if data is None:
-                    selected_time = self.config.sql_execution_timeout * 2
-                else:
-                    selected_time = data.execution_time
+                default_time_list = []
+                for i in range(3):
+                    self.pilot_data_interactor.pull_execution_time()
+                    data = self.pilot_data_interactor.execute(sql)
+                    if data is None:
+                        default_time = self.config.sql_execution_timeout * 2
+                    else:
+                        default_time = data.execution_time
+                    default_time_list.append(default_time)
+                default_time = sorted(default_time_list)[1]
 
-                self.pilot_data_interactor.pull_execution_time()
-                data = self.pilot_data_interactor.execute(sql)
-                if data is None:
-                    default_time = self.config.sql_execution_timeout * 2
-                else:
-                    default_time = data.execution_time
+                selected_time_list = []
+                for i in range(3):
+                    self.pilot_data_interactor.pull_execution_time()
+                    data = self.pilot_data_interactor.execute(index_selector.CombineSqlWithHints(sql, hints[best_idx]))
+                    if data is None:
+                        selected_time = self.config.sql_execution_timeout * 2
+                    else:
+                        selected_time = data.execution_time
+                    selected_time_list.append(selected_time)
+                selected_time = sorted(selected_time_list)[1]
+
 
             possible_times = list(data_test.loc[(data_test["sql"] == sql)]["time"])
             best_possible_time = min(possible_times)
@@ -244,17 +253,18 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
 
             # speed_up_sum += default_time / selected_time
             if selected_time * 0.8 > default_time:
-                better_counter += 1
-            elif default_time * 0.8 > selected_time:
                 worse_counter += 1
+            elif default_time * 0.8 > selected_time:
+                better_counter += 1
             else:
                 similar_counter += 1
 
             counter += 1
+
             print_log("Execution speed up: {:.2f}%({:.4f}s/{:.4f}s), Best possible in table: {:.4f}s.".format(default_time / selected_time * 100, default_time, selected_time,
                 best_possible_time), log_file_name, True)
             print_log("Total speed up: {:.2f}%({:.4f}s/{:.4f}s) Better: {:.2f}%({}/{}) Worse: {:.2f}%({}/{}) Similar: {:.2f}%({}/{})".format(
-                total_selected_time / total_default_time * 100, total_selected_time, total_default_time,
+                total_default_time / total_selected_time * 100, total_default_time, total_selected_time,
                 better_counter / counter * 100, better_counter, counter,
                 worse_counter / counter * 100, worse_counter, counter, similar_counter / counter * 100, similar_counter, counter), log_file_name, True)
             # mysql_model.predict
