@@ -220,11 +220,11 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                 default_time = min(default_time)
             else:
                 self.pilot_data_interactor.pull_execution_time()
-                self.pilot_data_interactor.execute(index_selector.CombineSqlWithHints(sql, hints[best_idx]))
+                data = self.pilot_data_interactor.execute(index_selector.CombineSqlWithHints(sql, hints[best_idx]))
                 selected_time = data.execution_time
 
                 self.pilot_data_interactor.pull_execution_time()
-                self.pilot_data_interactor.execute(sql)
+                data = self.pilot_data_interactor.execute(sql)
                 default_time = data.execution_time
 
             possible_times = list(data_test.loc[(data_test["sql"] == sql)]["time"])
