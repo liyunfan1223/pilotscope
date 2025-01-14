@@ -1,4 +1,5 @@
 import json
+import time
 
 from pandas import DataFrame
 
@@ -61,6 +62,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
         self.at_least_one_better_count = 0
         self.at_least_one_better_extreme_count = 0
         self.total_count = 0
+        self.log_file_name = "./test_" + str(time.time()) + ".log"
 
     def load_sql(self):
         self.sqls = load_training_sql(self.config.db)
@@ -117,7 +119,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                     best_time_with_hints = data.execution_time
                     best_hint = hint
                     
-                # print("Execution time:", data.execution_time, "Hint:", hint)
+                print("Execution time:", data.execution_time, "Hint:", hint)
                 # finish, new_cards = cards_picker.get_cards()
                 # scale_subquery_2_card = {sq : new_card for sq, new_card in zip(subquery_2_card.keys(), new_cards)}
                 column_2_value_list.append(column_2_value)
@@ -138,11 +140,13 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                     self.worse_count += 1
                 else:
                     self.similar_count += 1
-           
-            print_log("best time with hints: {:.4f}, default time: {:.4f}, best hints: {}".format(best_time_with_hints, default_time, best_hint), './app.log', True)
-            print_log("Accumulative better_count: {}, similar_count: {}, worse_count: {}".format(self.better_count, self.similar_count, self.worse_count), './app.log', True)
+
+            accumulative_total = self.better_count + self.similar_count + self.worse_count
+            print_log("best time with hints: {:.4f}, default time: {:.4f}, best hints: {}".format(best_time_with_hints, default_time, best_hint), self.log_file_name, True)
+            print_log("Accumulative better rate: {:.2f}% ({}/{}), similar rate: {:.2f}% ({}/{}), worse rate: {:.2f}% ({}/{})".format(self.better_count / accumulative_total * 100, self.better_count, accumulative_total,
+                self.similar_count / accumulative_total * 100, self.similar_count, accumulative_total, self.worse_count / accumulative_total * 100, self.worse_count, accumulative_total), self.log_file_name, True)
             print_log("At least one better rate: {:.2f}% ({}/{}), extreme: {:.2f}% ({}/{})".format(self.at_least_one_better_count / self.total_count * 100, 
-                self.at_least_one_better_count, self.total_count, self.at_least_one_better_extreme_count / self.total_count * 100, self.at_least_one_better_extreme_count, self.total_count), './app.log', True)
+                self.at_least_one_better_count, self.total_count, self.at_least_one_better_extreme_count / self.total_count * 100, self.at_least_one_better_extreme_count, self.total_count), self.log_file_name, True)
                 
         return column_2_value_list, True
 

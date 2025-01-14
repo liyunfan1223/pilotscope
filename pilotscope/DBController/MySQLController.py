@@ -34,9 +34,9 @@ class MySQLController(BaseDBController):
         self.config: MySQLConfig = config
 
     def _create_conn_str(self):
-        return "{}://{}:{}@{}:{}/{}?read_timeout={}".format("mysql+pymysql", self.config.db_user, self.config.db_user_pwd,
+        return "{}://{}:{}@{}:{}/{}".format("mysql+pymysql", self.config.db_user, self.config.db_user_pwd,
                                                self.config.db_host,
-                                               self.config.db_port, self.config.db, self.config.sql_execution_timeout)
+                                               self.config.db_port, self.config.db)
 
     def _create_engine(self):
         """
@@ -173,13 +173,14 @@ class MySQLController(BaseDBController):
         try:
             self._connect_if_loss()
             conn = self._get_connection()
+            conn.execute(text("SET SESSION MAX_EXECUTION_TIME={};".format(self.config.sql_execution_timeout * 1000)))
             result = conn.execute(text(sql) if isinstance(sql, str) else sql)
             if fetch:
                 row = result.all()
                 if fetch_column_name:
                     row = [tuple(result.keys()), *row]
         except OperationalError as e:
-            if "timed out" in str(e):
+            if "timed out" in str(e) or "time exceeded" in str(e):
                 raise DBStatementTimeoutException(str(e))
             else:
                 raise e
