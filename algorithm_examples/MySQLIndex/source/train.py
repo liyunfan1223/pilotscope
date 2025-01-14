@@ -1,6 +1,6 @@
 import argparse
 import math
-
+import json
 from pandas import DataFrame
 
 from pilotscope.DataManager.DataManager import DataManager
@@ -34,9 +34,10 @@ def get_training_pair(candidates):
         j = i + 1
         while j < len(candidates):
             s2 = candidates[j]
-            X1.append(s1)
-            X2.append(s2)
             j += 1
+            # if s1['Execution Time'] * 0.8 > s2['Execution Time'] or s2['Execution Time'] * 0.8 > s1['Execution Time']:
+            X1.append(json.dumps(s1))
+            X2.append(json.dumps(s2))
         i += 1
     return X1, X2
 

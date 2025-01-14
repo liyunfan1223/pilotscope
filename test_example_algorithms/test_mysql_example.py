@@ -14,6 +14,24 @@ from algorithm_examples.MySQLIndex.MySQLPresetScheduler import get_mysql_preset_
 from algorithm_examples.ExampleConfig import get_time_statistic_img_path
 from pilotscope.DBController.MySQLController import MySQLController
 
+import random
+import torch
+import numpy as np
+
+SEED = 42
+
+random.seed(SEED)
+# 设置 PyTorch 的随机种子
+torch.manual_seed(SEED)
+# 如果使用 CUDA 设备，设置 GPU 的随机种子
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(SEED)
+    torch.cuda.manual_seed_all(SEED)
+# 设置 numpy 的随机种子
+np.random.seed(42)
+# 禁用 PyTorch 的 cudnn 中的非确定性算法
+torch.backends.cudnn.deterministic = True
+
 # class MySQLTest(unittest.TestCase):
 #     def setUp(self):
 #         self.config: MySQLConfig = MySQLConfig()
@@ -40,7 +58,7 @@ from pilotscope.DBController.MySQLController import MySQLController
 
 if __name__ == '__main__':
     config = MySQLConfig()
-    scheduler = get_mysql_preset_scheduler(config, enable_collection=True, enable_training=True, num_collection=1000, num_epoch=100)
+    scheduler = get_mysql_preset_scheduler(config, enable_collection=False, enable_training=True, num_collection=1000, num_epoch=100, num_training=10000)
 
 # if __name__ == "__main__":
 #     controller = MySQLController(MySQLConfig())

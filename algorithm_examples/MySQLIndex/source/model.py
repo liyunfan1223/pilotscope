@@ -6,12 +6,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 
 from feature import SampleEntity
 from tcnn.module import ConvTree, ActivationTreeWrap, LayerNormTree, DynamicPoolingTree
 from tcnn.util import prepare_trees
 from tqdm import tqdm
+from algorithm_examples.utils import print_log, log_file_name
 CUDA = torch.cuda.is_available()
 num_gpus = torch.cuda.device_count()
 GPU_LIST = [0]
@@ -252,40 +253,76 @@ class MySQLModelPairWise(MySQLModel):
 
         pairs = []
         for i in range(len(X1)):
-            pairs.append((X1[i], X2[i], 1.0 if Y1[i] >= Y2[i] else 0.0))
+            # y = None
+            # if Y1[i] * 0.8 > Y2[i]:
+            #     y = 1.0
+            # elif Y2[i] * 0.8 > Y1[i]:
+            #     y = 0.0
+            # else:
+            #     y = 0.5
+            y = 1.0 if Y1[i] > Y2[i] else 0.0
+            pairs.append((X1[i], X2[i], y))
 
         batch_size = 64
         if CUDA:
             batch_size = batch_size * len(GPU_LIST)
 
-        dataset = DataLoader(pairs,
-                             batch_size=batch_size,
-                             shuffle=True,
-                             collate_fn=collate_pairwise_fn)
+        num_total = len(pairs)
+        num_train = int(num_total * 0.8)
+        num_val = num_total - num_train
 
-        optimizer = None
-        if CUDA:
-            optimizer = torch.optim.Adam(self._net.parameters())
-            # optimizer = nn.DataParallel(optimizer, device_ids=GPU_LIST)
-        else:
-            optimizer = torch.optim.Adam(self._net.parameters())
+        print("Preparing training and validating dataset for {} pairs".format(num_total))
+        # 使用 torch.utils.data.random_split 分割数据集
+        train_pairs, val_pairs = random_split(pairs, [num_train, num_val])
 
+        # 创建 DataLoader 用于训练集
+        dataset = DataLoader(train_pairs,
+                        batch_size=batch_size,
+                        shuffle=True,
+                        collate_fn=collate_pairwise_fn)
+
+        # 创建 DataLoader 用于验证集
+        dataset_validation = DataLoader(val_pairs,
+                                    batch_size=batch_size,
+                                    shuffle=True,
+                                    collate_fn=collate_pairwise_fn)
+        batched_x1 = []
+        batched_x2 = []
+        batched_y = []
+        for x1, x2, label in dataset:
+            batched_x1.append(prepare_trees(x1, transformer, left_child, right_child, cuda=CUDA, device=device))
+            batched_x2.append(prepare_trees(x2, transformer, left_child, right_child, cuda=CUDA, device=device))
+            batched_y.append(label)
+
+        dataset = list(zip(batched_x1, batched_x2, batched_y))
+
+        batched_x1_val = []
+        batched_x2_val = []
+        batched_y_val = []
+        for x1, x2, label in dataset_validation:
+            batched_x1_val.append(prepare_trees(x1, transformer, left_child, right_child, cuda=CUDA, device=device))
+            batched_x2_val.append(prepare_trees(x2, transformer, left_child, right_child, cuda=CUDA, device=device))
+            batched_y_val.append(label)
+        dataset_validation = list(zip(batched_x1_val, batched_x2_val, batched_y_val))
+
+        optimizer = torch.optim.Adam(self._net.parameters())
         bce_loss_fn = torch.nn.BCELoss()
 
         losses = []
+        validation_losses = []
         sigmoid = nn.Sigmoid()
         start_time = time()
         for epoch in range(num_epochs):
             loss_accum = 0
+            acc_accum = 0
             for x1, x2, label in tqdm(dataset):
-
-                tree_x1, tree_x2 = None, None
-                if CUDA:
-                    tree_x1 = self._net.module.build_trees(x1)
-                    tree_x2 = self._net.module.build_trees(x2)
-                else:
-                    tree_x1 = self._net.build_trees(x1)
-                    tree_x2 = self._net.build_trees(x2)
+                tree_x1, tree_x2 = x1, x2
+                # if CUDA:
+                #     tree_x1 = self._net.module.build_trees(x1)
+                #     tree_x2 = self._net.module.build_trees(x2)
+                # else:
+                #     tree_x1 = self._net.build_trees(x1)
+                #     tree_x2 = self._net.build_trees(x2)
 
                 # pairwise
                 y_pred_1 = self._net(tree_x1)
@@ -300,18 +337,68 @@ class MySQLModelPairWise(MySQLModel):
                 loss = bce_loss_fn(prob_y, label_y)
                 loss_accum += loss.item()
 
-                # if CUDA:
-                #     optimizer.module.zero_grad()
-                #     loss.backward()
-                #     optimizer.module.step()
-                # else:
+                for y1, y2, y_label in zip(y_pred_1.cpu(), y_pred_2.cpu(), label_y.cpu()):
+                    # y = None
+                    # if y1 * 0.8 > y2:
+                    #     y = 1.0
+                    # elif y2 * 0.8 > y1:
+                    #     y = 0.0
+                    # else:
+                    #     y = 0.5
+                    y = 1.0 if y1 > y2 else 0.0
+                    if y == y_label:
+                        acc_accum += 1
+
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
             loss_accum /= len(dataset)
+            acc_accum /= num_train
             losses.append(loss_accum)
+            
+            # 验证集验证
+            val_loss_accum = 0
+            val_acc_accum = 0
+            with torch.no_grad():  # 确保在验证过程中不计算梯度，不更新模型
+                for x1_val, x2_val, label_val in tqdm(dataset_validation):
+                    tree_x1_val, tree_x2_val = x1_val, x2_val
+                    # if CUDA:
+                    #     tree_x1_val = self._net.module.build_trees(x1_val)
+                    #     tree_x2_val = self._net.module.build_trees(x2_val)
+                    # else:
+                    #     tree_x1_val = self._net.build_trees(x1_val)
+                    #     tree_x2_val = self._net.build_trees(x2_val)
 
-            print("Epoch", epoch, "/", num_epochs, "training loss:", loss_accum)
+                    # pairwise
+                    y_pred_1_val = self._net(tree_x1_val)
+                    y_pred_2_val = self._net(tree_x2_val)
+                    diff_val = y_pred_1_val - y_pred_2_val
+                    prob_y_val = sigmoid(diff_val)
+
+                    label_y_val = torch.tensor(np.array(label_val).reshape(-1, 1))
+                    if CUDA:
+                        label_y_val = label_y_val.cuda(device)
+
+                    val_loss = bce_loss_fn(prob_y_val, label_y_val)
+                    val_loss_accum += val_loss.item()
+
+                    for y1, y2, y_label in zip(y_pred_1_val.cpu(), y_pred_2_val.cpu(), label_y_val.cpu()):
+                        # y = None
+                        # if y1 * 0.8 > y2:
+                        #     y = 1.0
+                        # elif y2 * 0.8 > y1:
+                        #     y = 0.0
+                        # else:
+                        #     y = 0.5
+                        y = 1.0 if y1 > y2 else 0.0
+                        if y == y_label:
+                            val_acc_accum += 1
+
+            val_loss_accum /= len(dataset_validation)
+            val_acc_accum /= num_val
+            validation_losses.append(val_loss_accum)
+            print_log("Epoch {}/{} training loss: {} training acc: {} validation loss: {} validation acc: {}".format(epoch + 1, num_epochs, loss_accum, acc_accum * 100, val_loss_accum, val_acc_accum * 100), log_file_name, True)
+
         print("training time:", time() - start_time, "batch size:", batch_size)
         

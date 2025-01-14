@@ -16,8 +16,11 @@ import numpy as np
 
 TABLE_SCAN = "Table Scan"
 SINGLE_INDEX_LOOKUP = "Single Index Lookup"
+SINGLE_COVERING_INDEX_LOOKUP = "Single Covering Index Lookup"
 INDEX_LOOKUP = "Index Lookup"
-SCAN_TYPES = [TABLE_SCAN, SINGLE_INDEX_LOOKUP, INDEX_LOOKUP]
+COVERING_INDEX_LOOKUP = "Covering Index Lookup"
+COVERING_INDEX_SCAN = "Covering Index Scan"
+SCAN_TYPES = [TABLE_SCAN, SINGLE_INDEX_LOOKUP, SINGLE_COVERING_INDEX_LOOKUP, INDEX_LOOKUP, COVERING_INDEX_LOOKUP, COVERING_INDEX_SCAN]
 
 NESTED_LOOP_JOIN = "Nested Loop Join"
 HASH_JOIN = "Hash Join"
@@ -45,8 +48,14 @@ def operation_to_optype(operation_str: str):
         return TABLE_SCAN
     elif operation_str.startswith("Single-row index lookup"):
         return SINGLE_INDEX_LOOKUP
+    elif operation_str.startswith("Single-row covering index lookup"):
+        return SINGLE_COVERING_INDEX_LOOKUP
     elif operation_str.startswith("Index lookup"):
         return INDEX_LOOKUP
+    elif operation_str.startswith("Covering index lookup"):
+        return COVERING_INDEX_LOOKUP
+    elif operation_str.startswith("Covering index scan"):
+        return COVERING_INDEX_SCAN
     # Join
     elif operation_str.startswith("Nested loop"):
         return NESTED_LOOP_JOIN
@@ -120,7 +129,8 @@ class FeatureGenerator():
         rows_min = np.min(rows)
         rows_max = np.max(rows)
 
-        print("RelType : ", rel_type)
+        print("Node Type : ", rel_type)
+        print("Input Relation : ", input_relations)
 
         if len(exec_times) > 0:
             exec_times = np.array(exec_times)
@@ -285,8 +295,8 @@ class AnalyzeJsonParser(FeatureParser):
         #     total_costs.append(n["estimated_total_cost"])
         # if "estimated_rows" in n:
         #     rows.append(n["estimated_rows"])
-        rows = self.normalizer.norm(float(json_rel["estimated_rows"]), 'Plan Rows') if "estimated_rows" in json_rel else 0 # max(left.rows, right.rows)
-        total_cost = self.normalizer.norm(float(json_rel["estimated_total_cost"]), 'Total Cost') if "estimated_total_cost" in json_rel else 0 # max(left.total_cost, right.total_cost)
+        rows = self.normalizer.norm(float(json_rel["estimated_rows"]), 'Plan Rows') if "estimated_rows" in json_rel else 0 #max(left.rows, right.rows)
+        total_cost = self.normalizer.norm(float(json_rel["estimated_total_cost"]), 'Total Cost') if "estimated_total_cost" in json_rel else max(left.total_cost, right.total_cost)
         # width = int(json_rel['Plan Width'])
 
         if operation_to_optype(json_rel['operation']) in SCAN_TYPES:

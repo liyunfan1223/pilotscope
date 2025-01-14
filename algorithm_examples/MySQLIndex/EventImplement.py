@@ -6,7 +6,7 @@ from pandas import DataFrame
 # from algorithm_examples.Lero.LeroPilotAdapter import CardsPickerModel
 # from algorithm_examples.Lero.source.train import training_pairwise_pilot_score, get_training_pair
 from algorithm_examples.MySQLIndex.source.train import training_pairwise_pilot_score, get_training_pair
-from algorithm_examples.utils import load_training_sql, print_log
+from algorithm_examples.utils import load_training_sql, print_log, log_file_name
 from pilotscope.DBController.BaseDBController import BaseDBController
 from pilotscope.DBInteractor.PilotDataInteractor import PilotDataInteractor
 from pilotscope.DataManager.DataManager import DataManager
@@ -27,7 +27,7 @@ def extract_plan_pairs(data: DataFrame):
         for idx, row in rows.iterrows():
             plan_json = json.loads(row["plan"])
             plan_json["Execution Time"] = row["time"]
-            sql_2_plans[sql].append(json.dumps(plan_json))
+            sql_2_plans[sql].append(plan_json)
 
     # build pair
     plans1 = []
@@ -60,9 +60,8 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
         self.similar_count = 0
         self.worse_count = 0
         self.at_least_one_better_count = 0
-        self.at_least_one_better_extreme_count = 0
+        self.at_least_one_better_excellent_count = 0
         self.total_count = 0
-        self.log_file_name = "./test_" + str(time.time()) + ".log"
 
     def load_sql(self):
         self.sqls = load_training_sql(self.config.db)
@@ -100,7 +99,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
             for extended_sql, hint in zip(extended_sqls, hints):
                 self.pilot_data_interactor.pull_physical_plan()
                 self.pilot_data_interactor.pull_execution_time()
-                data: PilotTransData = self.pilot_data_interactor.execute(extended_sql)
+                data: PilotTransData = self.pilot_data_interactor.execute(extended_sql, set_timeout=True)
                 if data is None:
                     # print(f"Warning: timeout in collecting data with hint {hint}. Try to enlarge 'timeout' in config to collect.")
                     self.pilot_data_interactor.pull_physical_plan()
@@ -129,7 +128,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
             if best_time_with_hints < default_time * 0.8:
                 self.at_least_one_better_count += 1
                 if best_time_with_hints < default_time * 0.2:
-                    self.at_least_one_better_extreme_count += 1
+                    self.at_least_one_better_excellent_count += 1
             for column_2_value in temp_value_list:
                 if column_2_value["hint"] == "":
                     continue
@@ -143,16 +142,16 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
 
             
             accumulative_total = self.better_count + self.similar_count + self.worse_count
-            print_log("best time with hints: {:.4f}, default time: {:.4f}, best hints: {}".format(best_time_with_hints, default_time, best_hint), self.log_file_name, True)
+            print_log("best time with hints: {:.4f}, default time: {:.4f}, best hints: {}".format(best_time_with_hints, default_time, best_hint), log_file_name, True)
             print_log("Accumulative better rate: {:.2f}% ({}/{}), similar rate: {:.2f}% ({}/{}), worse rate: {:.2f}% ({}/{})".format(self.better_count / accumulative_total * 100, self.better_count, accumulative_total,
-                self.similar_count / accumulative_total * 100, self.similar_count, accumulative_total, self.worse_count / accumulative_total * 100, self.worse_count, accumulative_total), self.log_file_name, True)
-            print_log("At least one better rate: {:.2f}% ({}/{}), extreme: {:.2f}% ({}/{})".format(self.at_least_one_better_count / self.total_count * 100, 
-                self.at_least_one_better_count, self.total_count, self.at_least_one_better_extreme_count / self.total_count * 100, self.at_least_one_better_extreme_count, self.total_count), self.log_file_name, True)
+                self.similar_count / accumulative_total * 100, self.similar_count, accumulative_total, self.worse_count / accumulative_total * 100, self.worse_count, accumulative_total), log_file_name, True)
+            print_log("At least one better rate: {:.2f}% ({}/{}), excellent: {:.2f}% ({}/{})".format(self.at_least_one_better_count / self.total_count * 100, 
+                self.at_least_one_better_count, self.total_count, self.at_least_one_better_excellent_count / self.total_count * 100, self.at_least_one_better_excellent_count, self.total_count), log_file_name, True)
             
             table = self.data_saving_table
             train_data_manager.save_data_batch(table, temp_value_list)
             print("{} records are written into table {}".format(len(temp_value_list), table))
-            
+
         return column_2_value_list, True
 
     def custom_model_training(self, bind_pilot_model, db_controller: BaseDBController,
@@ -160,6 +159,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
         data: DataFrame = data_manager.read_all(self.data_saving_table)
         if self.num_training > 0:
             data = data[:self.num_training]
+
         print(f"Train mysql on {data.shape[0]} plans")
         plans1, plans2 = extract_plan_pairs(data)
         mysql_model = training_pairwise_pilot_score(bind_pilot_model, plans1, plans2, self.num_epoch)

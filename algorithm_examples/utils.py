@@ -1,4 +1,5 @@
 import os
+import time
 
 from pilotscope.Common.Index import Index
 from pilotscope.Common.Util import json_str_to_json_obj
@@ -176,6 +177,8 @@ def get_spark_table_name_for_scan_node(node: dict):
     else:
         raise NotImplementedError
     return table
+
+log_file_name = "./test_" + time.strftime("%Y%m%d_%H%M%S") + ".log"
 
 def print_log(s, log_path, print_to_std_out=False):
     os.system("echo \"" + str(s) + "\" >> " + log_path)

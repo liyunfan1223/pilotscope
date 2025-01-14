@@ -160,7 +160,7 @@ class MySQLController(BaseDBController):
     #     """
     #     pass
 
-    def execute(self, sql, fetch=False, fetch_column_name=False):
+    def execute(self, sql, fetch=False, fetch_column_name=False, set_timeout=False):
         """
         Execute a SQL query.
 
@@ -173,7 +173,8 @@ class MySQLController(BaseDBController):
         try:
             self._connect_if_loss()
             conn = self._get_connection()
-            conn.execute(text("SET SESSION MAX_EXECUTION_TIME={};".format(self.config.sql_execution_timeout * 1000)))
+            if set_timeout:
+                conn.execute(text("SET SESSION MAX_EXECUTION_TIME={};".format(self.config.sql_execution_timeout * 1000)))
             result = conn.execute(text(sql) if isinstance(sql, str) else sql)
             if fetch:
                 row = result.all()
@@ -259,5 +260,5 @@ class MySQLController(BaseDBController):
 if __name__ == "__main__":
     controller = MySQLController(MySQLConfig())
     controller._connect_if_loss()
-    controller.execute("SELECT * FROM test_table")
+    controller.execute("SELECT * FROM test_table", set_timeout=False)
     controller.close()
