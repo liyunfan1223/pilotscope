@@ -120,7 +120,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                     best_time_with_hints = data.execution_time
                     best_hint = hint
                     
-                # print("Execution time:", data.execution_time, "Hint:", hint)
+                print("Execution time:", data.execution_time, "Hint:", hint)
                 # finish, new_cards = cards_picker.get_cards()
                 # scale_subquery_2_card = {sq : new_card for sq, new_card in zip(subquery_2_card.keys(), new_cards)}
                 column_2_value_list.append(column_2_value)
