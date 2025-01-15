@@ -30,6 +30,8 @@ UNKNOWN_OP_TYPE = "Unknown"
 
 ALL_TYPES = [UNKNOWN_OP_TYPE, "Filter", "Sort", "Aggregate", "Temporary table", "Limit"] + SCAN_TYPES + JOIN_TYPES
 
+TEMPOERARY_TABLE = "<temporary>"
+
 def json_str_to_json_obj(json_data):
     if not isinstance(json_data, dict):
         json_obj = json.loads(json_data)
@@ -105,7 +107,8 @@ class FeatureGenerator():
                 rel_type.add(operation_to_optype(n["operation"]))
             if "table_name" in n:
                 # base table
-                input_relations.add(n["table_name"])
+                if n["table_name"] != TEMPOERARY_TABLE:
+                    input_relations.add(n["table_name"])
 
             if "inputs" in n:
                 for child in n["inputs"]:
@@ -157,7 +160,8 @@ class FeatureGenerator():
         tables = set()
         def get_all_table_to_ignore_recursive(json_obj):
             if ("table_name" in json_obj) and ("index_name" in json_obj):
-                tables.add(json_obj["table_name"])
+                if json_obj["table_name"] != TEMPOERARY_TABLE:
+                    tables.add(json_obj["table_name"])
 
             if "inputs" in json_obj:
                 for child in json_obj["inputs"]:
@@ -300,7 +304,8 @@ class AnalyzeJsonParser(FeatureParser):
         # width = int(json_rel['Plan Width'])
 
         if operation_to_optype(json_rel['operation']) in SCAN_TYPES:
-            input_relations.append(json_rel["table_name"])
+            if json_rel["table_name"] != TEMPOERARY_TABLE:
+                input_relations.append(json_rel["table_name"])
 
         # startup_time = None
         # if 'Actual Startup Time' in json_rel:

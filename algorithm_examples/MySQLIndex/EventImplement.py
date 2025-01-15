@@ -180,6 +180,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
         speed_up_sum = 0
         counter = 0
         better_counter = 0
+        excellent_counter = 0
         worse_counter = 0
         similar_counter = 0
         explore_from_table = False
@@ -187,6 +188,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
         total_selected_time = 0
         total_default_time = 0
         for i, sql in zip(range(len(test_sqls)), test_sqls):
+            print("{}-th sql: {}".format(i + 1, sql))
             self.pilot_data_interactor.pull_possible_keys()
             self.pilot_data_interactor.pull_physical_plan()
             data: PilotTransData = self.pilot_data_interactor.execute(sql)
@@ -244,9 +246,10 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                     selected_time_list.append(selected_time)
                 selected_time = sorted(selected_time_list)[1]
 
-
-            possible_times = list(data_test.loc[(data_test["sql"] == sql)]["time"])
-            best_possible_time = min(possible_times)
+            idx_min = data_test.loc[(data_test["sql"] == sql)]["time"].idxmin()
+            # possible_times = list(data_test.loc[(data_test["sql"] == sql)]["time"])
+            best_possible_time = data_test.loc[(data_test["sql"] == sql)].loc[idx_min]["time"]
+            best_possible_hint = data_test.loc[(data_test["sql"] == sql)].loc[idx_min]["hint"]
 
             total_selected_time += selected_time
             total_default_time += default_time
@@ -256,16 +259,19 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                 worse_counter += 1
             elif default_time * 0.8 > selected_time:
                 better_counter += 1
+                if default_time * 0.8 > selected_time:
+                    excellent_counter += 1
             else:
                 similar_counter += 1
 
             counter += 1
 
-            print_log("Execution speed up: {:.2f}%({:.4f}s/{:.4f}s), Best possible in table: {:.4f}s.".format(default_time / selected_time * 100, default_time, selected_time,
-                best_possible_time), log_file_name, True)
-            print_log("Total speed up: {:.2f}%({:.4f}s/{:.4f}s) Better: {:.2f}%({}/{}) Worse: {:.2f}%({}/{}) Similar: {:.2f}%({}/{})".format(
+            print_log("Execution speed up: {:.2f}%({:.4f}s->{:.4f}s), Best possible in table: {:.4f}s with hint {}".format(default_time / selected_time * 100, default_time, selected_time,
+                best_possible_time, best_possible_hint), log_file_name, True)
+            print_log("Total speed up: {:.2f}%({:.4f}s->{:.4f}s) Better: {:.2f}%({}/{}) Excellent: {:.2f}%({}/{}) Worse: {:.2f}%({}/{}) Similar: {:.2f}%({}/{})".format(
                 total_default_time / total_selected_time * 100, total_default_time, total_selected_time,
                 better_counter / counter * 100, better_counter, counter,
+                excellent_counter / counter * 100, excellent_counter, counter,
                 worse_counter / counter * 100, worse_counter, counter, similar_counter / counter * 100, similar_counter, counter), log_file_name, True)
             # mysql_model.predict
                 # mysql_model.predict
