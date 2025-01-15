@@ -259,7 +259,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                 worse_counter += 1
             elif default_time * 0.8 > selected_time:
                 better_counter += 1
-                if default_time * 0.8 > selected_time:
+                if default_time * 0.2 > selected_time:
                     excellent_counter += 1
             else:
                 similar_counter += 1
