@@ -15,7 +15,7 @@ from pilotscope.PilotEvent import PeriodicModelUpdateEvent, PretrainingModelEven
 from pilotscope.PilotModel import PilotModel
 from pilotscope.PilotTransData import PilotTransData
 from algorithm_examples.MySQLIndex.source.feature import FeatureGenerator
-from algorithm_examples.MySQLIndex.MySQLIndexSelector import MySQLIndexSelector
+from algorithm_examples.MySQLIndex.MySQLHintsGenerator import MySQLHintsGenerator
 from sklearn.model_selection import train_test_split
 import numpy as np
 
@@ -91,8 +91,8 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
             data: PilotTransData = self.pilot_data_interactor.execute(sql)
             feature_generator = FeatureGenerator()
             tables = feature_generator.get_all_table_to_ignore(data.physical_plan)
-            index_selector = MySQLIndexSelector()
-            extended_sqls, hints = index_selector.GenerateSQLsWithHints(sql, data.possible_keys, len(tables))
+            hints_generator = MySQLHintsGenerator()
+            extended_sqls, hints = hints_generator.GenerateSQLsWithHints(sql, data.possible_keys, len(tables))
 
             default_time = 1000000
             best_time_with_hints = 1000000
@@ -194,26 +194,28 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
             data: PilotTransData = self.pilot_data_interactor.execute(sql)
             feature_generator = FeatureGenerator()
             tables = feature_generator.get_all_table_to_ignore(data.physical_plan)
-            index_selector = MySQLIndexSelector()
+            hints_generator = MySQLHintsGenerator()
             if explore_from_table:
                 extended_sqls = []
                 hints = list(data_test.loc[(data_test["sql"] == sql)]["hint"])
                 for hint in hints:
-                    extended_sqls.append(index_selector.CombineSqlWithHints(sql, hint))
+                    extended_sqls.append(hints_generator.CombineSqlWithHints(sql, hint))
             else:
-                extended_sqls, hints = index_selector.GenerateSQLsWithHints(sql, data.possible_keys, len(tables))
+                extended_sqls, hints = hints_generator.GenerateSQLsWithHints(sql, data.possible_keys, len(tables))
 
             feature_trees = []
             physical_plans = []
+            start_get_physical_plan = time.time()
             for extended_sql, hint in zip(extended_sqls, hints):
                 self.pilot_data_interactor.pull_physical_plan()
                 data: PilotTransData = self.pilot_data_interactor.execute(extended_sql)
                 physical_plan = data.physical_plan
                 physical_plans.append(physical_plan)
             X, Y = mysql_model._feature_generator.transform(physical_plans)
+            start_predict_time = time.time()
             pred = mysql_model.predict(X)
             best_idx = np.argmin(pred)
-            print_log("Model select hint for {}-th SQL: {}".format(i + 1, hints[best_idx]), log_file_name, True)
+            print_log("Plans get in : {:.4f}s, predict in: {:.4f}s. Model select hint for {}-th SQL: {}".format(start_predict_time - start_get_physical_plan, time.time() - start_predict_time, i + 1, hints[best_idx]), log_file_name, True)
 
             if explore_from_table:
                 selected_time = list(data_test.loc[(data_test["sql"] == sql) & (data_test["hint"] == hints[best_idx])]["time"])
@@ -238,7 +240,7 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
                 selected_time_list = []
                 for i in range(3):
                     self.pilot_data_interactor.pull_execution_time()
-                    data = self.pilot_data_interactor.execute(index_selector.CombineSqlWithHints(sql, hints[best_idx]))
+                    data = self.pilot_data_interactor.execute(hints_generator.CombineSqlWithHints(sql, hints[best_idx]))
                     if data is None:
                         selected_time = self.config.sql_execution_timeout * 2
                     else:
@@ -266,9 +268,9 @@ class MySQLIndexPretrainingModelEvent(PretrainingModelEvent):
 
             counter += 1
 
-            print_log("Execution speed up: {:.2f}%({:.4f}s->{:.4f}s), Best possible in table: {:.4f}s with hint {}".format(default_time / selected_time * 100, default_time, selected_time,
+            print_log("Execution speed up: {:.2f}% ({:.4f}s->{:.4f}s), Best possible in table: {:.4f}s with hint {}".format(default_time / selected_time * 100, default_time, selected_time,
                 best_possible_time, best_possible_hint), log_file_name, True)
-            print_log("Total speed up: {:.2f}%({:.4f}s->{:.4f}s) Better: {:.2f}%({}/{}) Excellent: {:.2f}%({}/{}) Worse: {:.2f}%({}/{}) Similar: {:.2f}%({}/{})".format(
+            print_log("Total speed up: {:.2f}% ({:.4f}s->{:.4f}s) Better: {:.2f}% ({}/{}) Excellent: {:.2f}% ({}/{}) Worse: {:.2f}% ({}/{}) Similar: {:.2f}% ({}/{})".format(
                 total_default_time / total_selected_time * 100, total_default_time, total_selected_time,
                 better_counter / counter * 100, better_counter, counter,
                 excellent_counter / counter * 100, excellent_counter, counter,
